@@ -4,6 +4,7 @@
 
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://relogiosoft.github.io/relogiosoft-api-governance-kit)
 [![Spectral](https://img.shields.io/badge/linting-Spectral-brightgreen)](https://stoplight.io/open-source/spectral)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
 
