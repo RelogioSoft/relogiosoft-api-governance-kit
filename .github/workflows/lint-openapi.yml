@@ -1,0 +1,47 @@
+name: Lint OpenAPI specs
+
+on:
+  pull_request:
+    paths:
+      - "**/*.yaml"
+      - "**/*.yml"
+      - "**/*.json"
+      - ".spectral.yml"
+  push:
+    branches: [main]
+    paths:
+      - "**/*.yaml"
+      - "**/*.yml"
+      - ".spectral.yml"
+
+jobs:
+  spectral-lint:
+    name: Spectral governance lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Spectral CLI
+        run: npm install -g @stoplight/spectral-cli
+
+      - name: Lint all OpenAPI specs
+        run: |
+          SPECS=$(find . \
+            \( -name "*.yaml" -o -name "*.yml" \) \
+            -not -path "./.git/*" \
+            -not -name "mkdocs.yml" \
+            -not -name "deploy-docs.yml" \
+            -not -name "lint-openapi.yml" \
+            -not -path "./requirements*" | xargs grep -l "^openapi:" 2>/dev/null || true)
+
+          if [ -z "$SPECS" ]; then
+            echo "No OpenAPI specs found — skipping lint."
+            exit 0
+          fi
+
+          echo "Linting specs: $SPECS"
+          echo "$SPECS" | xargs spectral lint --ruleset .spectral.yml --format stylish

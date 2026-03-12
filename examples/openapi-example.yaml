@@ -1,0 +1,486 @@
+openapi: 3.1.0
+info:
+  title: Orders API
+  description: >-
+    Example Order Management API demonstrating RelogioSoft governance compliance.
+    This spec passes the .spectral.yml ruleset.
+  version: 1.0.0
+  contact:
+    name: API Platform Team
+    email: platform@relogiosoft.com
+  x-status: stable
+
+servers:
+  - url: https://api.relogiosoft.com/v1
+    description: Production
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: orders
+    description: Order resource operations
+
+paths:
+  /orders:
+    get:
+      operationId: listOrders
+      summary: List all orders
+      description: Returns a paginated list of orders for the authenticated tenant. Supports cursor-based pagination, sorting, and filtering by status.
+      tags: [orders]
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of results to return (1–100)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: after
+          in: query
+          description: Cursor for forward pagination — return results after this cursor value
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: Filter orders by status
+          schema:
+            type: string
+            enum: [pending, confirmed, cancelled, completed]
+        - name: sortby
+          in: query
+          description: Sort field, prefix with `-` for descending (e.g. `-createdAt`)
+          schema:
+            type: string
+            default: "-createdAt"
+      security:
+        - bearerAuth: [orders:read]
+      responses:
+        "200":
+          description: Paginated list of orders
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              description: Caching directive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrdersPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      operationId: createOrder
+      summary: Create a new order
+      description: Creates a new order. Returns 201 with a Location header pointing to the created resource.
+      tags: [orders]
+      security:
+        - bearerAuth: [orders:write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrderRequest"
+      responses:
+        "201":
+          description: Order created successfully
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+              description: URI of the newly created order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /orders/{orderId}:
+    parameters:
+      - name: orderId
+        in: path
+        required: true
+        description: Unique order identifier (string)
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      operationId: getOrder
+      summary: Get a single order by ID
+      description: Returns the full order resource for the given orderId.
+      tags: [orders]
+      security:
+        - bearerAuth: [orders:read]
+      responses:
+        "200":
+          description: Order found
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+            ETag:
+              schema:
+                type: string
+              description: Entity tag for conditional requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    patch:
+      operationId: updateOrder
+      summary: Partially update an order
+      description: Applies a JSON Patch (RFC 6902) to the order resource. Use to update individual fields such as status.
+      tags: [orders]
+      security:
+        - bearerAuth: [orders:write]
+      requestBody:
+        required: true
+        content:
+          application/json-patch+json:
+            schema:
+              type: array
+              items:
+                $ref: "#/components/schemas/JsonPatchOperation"
+            example:
+              - op: replace
+                path: /status
+                value: cancelled
+      responses:
+        "200":
+          description: Order updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    delete:
+      operationId: cancelOrder
+      summary: Cancel an order
+      description: Cancels a pending order. Returns 204 on success. Returns 409 if the order is in a state that cannot be cancelled.
+      tags: [orders]
+      security:
+        - bearerAuth: [orders:write]
+      responses:
+        "204":
+          description: Order cancelled successfully
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /health:
+    get:
+      operationId: getHealth
+      summary: Health check
+      description: Returns service health. No authentication required. Returns 200 when healthy, 503 when unavailable.
+      tags: [health]
+      security: []
+      responses:
+        "200":
+          description: Service is healthy
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                example: no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          description: Service is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: OAuth 2.0 Bearer token issued by the RelogioSoft Keycloak realm
+
+  schemas:
+    Order:
+      description: A customer order resource
+      type: object
+      required: [id, customerId, status, totalAmount, currency, createdAt]
+      properties:
+        id:
+          description: Unique order identifier
+          type: string
+          format: uuid
+        customerId:
+          description: Identifier of the customer who placed the order
+          type: string
+          format: uuid
+        status:
+          description: Current lifecycle status of the order
+          type: string
+          enum: [pending, confirmed, cancelled, completed]
+        totalAmount:
+          description: Order total in minor currency units (e.g. 5122 = EUR 51.22)
+          type: integer
+        currency:
+          description: ISO 4217 currency code
+          type: string
+          example: EUR
+        createdAt:
+          description: ISO 8601 UTC timestamp when the order was created
+          type: string
+          format: date-time
+        updatedAt:
+          description: ISO 8601 UTC timestamp of the last update
+          type: string
+          format: date-time
+
+    CreateOrderRequest:
+      description: Request body for creating a new order
+      type: object
+      required: [customerId, items, currency]
+      properties:
+        customerId:
+          description: Identifier of the customer placing the order
+          type: string
+          format: uuid
+        currency:
+          description: ISO 4217 currency code
+          type: string
+          example: EUR
+        items:
+          description: Line items in the order
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/OrderItem"
+
+    OrderItem:
+      description: A single line item within an order
+      type: object
+      required: [productId, quantity, unitPrice]
+      properties:
+        productId:
+          description: Identifier of the product
+          type: string
+          format: uuid
+        quantity:
+          description: Number of units
+          type: integer
+          minimum: 1
+        unitPrice:
+          description: Unit price in minor currency units
+          type: integer
+
+    OrdersPage:
+      description: Paginated collection of orders
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Order"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    Pagination:
+      description: Cursor-based pagination metadata
+      type: object
+      required: [limit, hasMore]
+      properties:
+        limit:
+          description: Maximum results per page
+          type: integer
+        hasMore:
+          description: Whether more results exist after this page
+          type: boolean
+        nextCursor:
+          description: Cursor value for the next page
+          type: string
+
+    JsonPatchOperation:
+      description: A single JSON Patch operation (RFC 6902)
+      type: object
+      required: [op, path]
+      properties:
+        op:
+          description: Operation type
+          type: string
+          enum: [add, remove, replace, copy, move, test]
+        path:
+          description: JSON Pointer path to the target field
+          type: string
+          example: /status
+        value:
+          description: New value (required for add/replace/test)
+
+    HealthResponse:
+      description: Service health status
+      type: object
+      required: [status, timestamp]
+      properties:
+        status:
+          description: Aggregate health status
+          type: string
+          enum: [ok, degraded, down]
+        timestamp:
+          description: ISO 8601 UTC timestamp of the health check
+          type: string
+          format: date-time
+        version:
+          description: Application version
+          type: string
+
+    Fault:
+      description: Standard error response envelope per RelogioSoft error handling standards
+      type: object
+      required: [fault]
+      properties:
+        fault:
+          type: object
+          required: [faultId, traceId, errors]
+          properties:
+            faultId:
+              description: Unique identifier for this specific fault occurrence
+              type: string
+              format: uuid
+            traceId:
+              description: Distributed trace identifier propagated via x-conversation header
+              type: string
+              format: uuid
+            errors:
+              type: array
+              minItems: 1
+              items:
+                $ref: "#/components/schemas/FaultError"
+
+    FaultError:
+      description: A single error detail within a fault response
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          description: Machine-readable error code in UPPER_SNAKE_CASE
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          description: Human-readable error description
+          type: string
+        field:
+          description: JSON Pointer to the field that caused the error (for validation errors)
+          type: string
+
+  responses:
+    BadRequest:
+      description: The request is malformed or fails input validation
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Fault"
+
+    Unauthorized:
+      description: Missing or invalid authentication credentials
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Fault"
+
+    Forbidden:
+      description: Authenticated but not authorized. Returned for cross-tenant access regardless of whether the resource exists.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Fault"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Fault"
+
+    Conflict:
+      description: Resource state conflict — the operation cannot be performed in the current state
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Fault"
+
+    UnprocessableEntity:
+      description: Semantic validation failure (used exclusively for JSON Patch validation)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Fault"
+
+    TooManyRequests:
+      description: Rate limit exceeded
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds to wait before retrying
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Fault"
+
+    InternalServerError:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Fault"
