@@ -1,0 +1,346 @@
+extends:
+  - spectral:oas
+
+rules:
+  # ── doc 02 · API Lifecycle ───────────────────────────────────────────────────
+  rls-info-x-status:
+    message: "info object MUST declare x-status (draft|unstable|stable|deprecated|obsolete) [doc 02]"
+    severity: warn
+    given: "$.info"
+    then:
+      field: x-status
+      function: defined
+
+  rls-info-x-status-enum:
+    message: "x-status MUST be one of: draft, unstable, stable, deprecated, obsolete [doc 02]"
+    severity: warn
+    given: "$.info.x-status"
+    then:
+      function: enumeration
+      functionOptions:
+        values:
+          - draft
+          - unstable
+          - stable
+          - deprecated
+          - obsolete
+
+  # ── doc 04 · URI Design ──────────────────────────────────────────────────────
+  rls-paths-kebab-case:
+    message: "Path segments MUST use kebab-case (lowercase with hyphens only) [doc 04]"
+    severity: error
+    given: "$.paths[*]~"
+    then:
+      function: pattern
+      functionOptions:
+        # Allow: lowercase letters, digits, hyphens, slashes, path params {id}
+        match: "^(/[a-z0-9][a-z0-9-]*|/\\{[a-zA-Z][a-zA-Z0-9_]*\\})*/?$"
+
+  rls-paths-no-trailing-slash:
+    message: "Paths MUST NOT end with a trailing slash [doc 04]"
+    severity: error
+    given: "$.paths[*]~"
+    then:
+      function: pattern
+      functionOptions:
+        notMatch: ".+/$"
+
+  rls-paths-no-file-extension:
+    message: "Paths MUST NOT include file extensions (.json, .xml, .csv) — use Accept header instead [doc 04]"
+    severity: error
+    given: "$.paths[*]~"
+    then:
+      function: pattern
+      functionOptions:
+        notMatch: "\\.(json|xml|csv|html)(/|$)"
+
+  # ── doc 05 · HTTP Verbs ──────────────────────────────────────────────────────
+  rls-get-no-request-body:
+    message: "GET operations MUST NOT include a request body [doc 05]"
+    severity: error
+    given: "$.paths[*].get"
+    then:
+      field: requestBody
+      function: falsy
+
+  rls-delete-no-request-body:
+    message: "DELETE operations SHOULD NOT include a request body [doc 05]"
+    severity: warn
+    given: "$.paths[*].delete"
+    then:
+      field: requestBody
+      function: falsy
+
+  rls-patch-json-patch-content-type:
+    message: "PATCH operations MUST declare application/json-patch+json as a supported content type [doc 05]"
+    severity: error
+    given: "$.paths[*].patch.requestBody.content"
+    then:
+      field: "application/json-patch+json"
+      function: defined
+
+  # ── doc 06 · HTTP Status Codes ───────────────────────────────────────────────
+  rls-post-201-or-202:
+    message: "POST operations that create resources MUST declare 201 or 202 response (not just 200) [doc 06]"
+    severity: warn
+    given: "$.paths[*].post.responses"
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          anyOf:
+            - required: ["201"]
+            - required: ["202"]
+            - required: ["200"]   # allowed for search/action POST that doesn't create
+
+  rls-post-201-location-header:
+    message: "201 Created responses MUST include a Location response header [doc 06]"
+    severity: error
+    given: "$.paths[*].post.responses.201"
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          required: [headers]
+          properties:
+            headers:
+              required: [Location]
+
+  rls-delete-204:
+    message: "Successful DELETE operations SHOULD return 204 No Content [doc 06]"
+    severity: warn
+    given: "$.paths[*].delete.responses"
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          required: ["204"]
+
+  rls-operations-must-have-4xx:
+    message: "Every operation MUST declare at least one 4xx error response [doc 06]"
+    severity: error
+    given: "$.paths[*][get,post,put,patch,delete].responses"
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          anyOf:
+            - required: ["400"]
+            - required: ["401"]
+            - required: ["403"]
+            - required: ["404"]
+            - required: ["409"]
+            - required: ["422"]
+            - required: ["429"]
+
+  rls-operations-must-have-500:
+    message: "Every operation MUST declare a 500 or 5xx error response [doc 06]"
+    severity: warn
+    given: "$.paths[*][get,post,put,patch,delete].responses"
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          anyOf:
+            - required: ["500"]
+            - required: ["503"]
+            - required: ["5XX"]
+
+  # ── doc 07 · Error Handling ──────────────────────────────────────────────────
+  rls-error-response-application-json:
+    message: "4xx/5xx responses MUST use application/json content type [doc 07]"
+    severity: error
+    given: "$.paths[*][*].responses[4XX,5XX,400,401,403,404,409,422,429,500,503]"
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          required: [content]
+          properties:
+            content:
+              required: [application/json]
+
+  # ── doc 08 · Querying & Filtering ────────────────────────────────────────────
+  # Note: rls-get-collection-pagination requires a custom Spectral function to
+  # filter paths by pattern (JSONPath does not support regex filters natively).
+  # Enforce this rule in code review: every collection GET MUST support
+  # limit + cursor/page query parameters (doc 08).
+
+  # ── doc 09 · Data Representations ───────────────────────────────────────────
+  # Note: property-name-aware rules (id → string, monetary → integer,
+  # date fields → date-time format) require custom Spectral functions.
+  # Enforce in code review per doc 09:
+  #   - Identifier fields MUST be type: string (never integer)
+  #   - Monetary values MUST be type: integer in minor currency units
+  #   - Date/time fields MUST declare format: date-time
+  rls-no-format-float-globally:
+    message: "format: float and format: double MUST NOT be used — represent monetary values as integer minor currency units instead [doc 09]"
+    severity: error
+    given: "$.components.schemas[*].properties[*].format"
+    then:
+      function: pattern
+      functionOptions:
+        notMatch: "^(float|double)$"
+
+  # ── doc 10 · Caching ────────────────────────────────────────────────────────
+  rls-get-cache-control-header:
+    message: "GET operation 200 responses SHOULD declare a Cache-Control response header [doc 10]"
+    severity: warn
+    given: "$.paths[*].get.responses.200"
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          properties:
+            headers:
+              required: [Cache-Control]
+
+  # ── doc 12 · Documentation Standards ────────────────────────────────────────
+  rls-operation-id-required:
+    message: "Every operation MUST have an operationId [doc 12]"
+    severity: error
+    given: "$.paths[*][get,post,put,patch,delete]"
+    then:
+      field: operationId
+      function: defined
+
+  rls-operation-id-camel-case:
+    message: "operationId MUST be camelCase [doc 12]"
+    severity: warn
+    given: "$.paths[*][get,post,put,patch,delete].operationId"
+    then:
+      function: pattern
+      functionOptions:
+        match: "^[a-z][a-zA-Z0-9]*$"
+
+  rls-operation-summary-required:
+    message: "Every operation MUST have a summary [doc 12]"
+    severity: error
+    given: "$.paths[*][get,post,put,patch,delete]"
+    then:
+      field: summary
+      function: defined
+
+  rls-operation-description-required:
+    message: "Every operation SHOULD have a description [doc 12]"
+    severity: warn
+    given: "$.paths[*][get,post,put,patch,delete]"
+    then:
+      field: description
+      function: defined
+
+  rls-operation-tags-required:
+    message: "Every operation MUST have at least one tag [doc 12]"
+    severity: error
+    given: "$.paths[*][get,post,put,patch,delete]"
+    then:
+      field: tags
+      function: defined
+
+  rls-schema-description-required:
+    message: "Every schema in components SHOULD have a description [doc 12]"
+    severity: warn
+    given: "$.components.schemas[*]"
+    then:
+      field: description
+      function: defined
+
+  rls-schema-property-description-required:
+    message: "Schema properties SHOULD have descriptions [doc 12]"
+    severity: warn
+    given: "$.components.schemas[*].properties[*]"
+    then:
+      field: description
+      function: defined
+
+  rls-info-description-required:
+    message: "The info object SHOULD have a description [doc 12]"
+    severity: warn
+    given: "$.info"
+    then:
+      field: description
+      function: defined
+
+  rls-info-contact-required:
+    message: "The info object SHOULD declare a contact [doc 12]"
+    severity: warn
+    given: "$.info"
+    then:
+      field: contact
+      function: defined
+
+  # ── doc 13 · Security ───────────────────────────────────────────────────────
+  rls-no-api-key-in-query:
+    message: "API keys MUST NOT be passed as query parameters — use header instead [doc 13]"
+    severity: error
+    given: "$.components.securitySchemes[*][?(@.type === 'apiKey')]"
+    then:
+      field: in
+      function: pattern
+      functionOptions:
+        notMatch: "^query$"
+
+  rls-no-http-basic-auth:
+    message: "HTTP Basic authentication MUST NOT be used [doc 13]"
+    severity: error
+    given: "$.components.securitySchemes[*][?(@.type === 'http')]"
+    then:
+      field: scheme
+      function: pattern
+      functionOptions:
+        notMatch: "^basic$"
+
+  rls-no-implicit-oauth-flow:
+    message: "OAuth 2.0 implicit flow MUST NOT be used [doc 13]"
+    severity: error
+    given: "$.components.securitySchemes[*].flows"
+    then:
+      field: implicit
+      function: falsy
+
+  rls-no-password-oauth-flow:
+    message: "OAuth 2.0 password grant MUST NOT be used [doc 13]"
+    severity: error
+    given: "$.components.securitySchemes[*].flows"
+    then:
+      field: password
+      function: falsy
+
+  rls-operations-must-have-security:
+    message: "Every operation MUST declare security requirements unless explicitly public [doc 13]"
+    severity: warn
+    given: "$.paths[*][get,post,put,patch,delete]"
+    then:
+      field: security
+      function: defined
+
+  rls-global-security-defined:
+    message: "A global security scheme SHOULD be defined [doc 13]"
+    severity: warn
+    given: "$"
+    then:
+      field: security
+      function: defined
+
+  # ── doc 14 · Headers ────────────────────────────────────────────────────────
+  rls-servers-https-only:
+    message: "Server URLs MUST use HTTPS in production (not HTTP) [doc 13/14]"
+    severity: warn
+    given: "$.servers[*].url"
+    then:
+      function: pattern
+      functionOptions:
+        notMatch: "^http://((?!localhost|127\\.0\\.0\\.1|0\\.0\\.0\\.0).)*"
+
+  # ── doc 17 · Health Endpoints ───────────────────────────────────────────────
+  rls-health-endpoint-exists:
+    message: "Every service MUST expose a /health endpoint [doc 17]"
+    severity: warn
+    given: "$.paths"
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          anyOf:
+            - required: ["/health"]
+            - required: ["/health/live"]
