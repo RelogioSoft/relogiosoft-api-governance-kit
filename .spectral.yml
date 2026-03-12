@@ -174,17 +174,13 @@ rules:
   #   - Monetary values MUST be type: integer in minor currency units
   #   - Date/time fields MUST declare format: date-time
   rls-no-format-float-globally:
-    message: "format: float and format: double MUST NOT be used for any schema property [doc 09]"
+    message: "format: float and format: double MUST NOT be used — represent monetary values as integer minor currency units instead [doc 09]"
     severity: error
-    given: "$.components.schemas[*].properties[*]"
+    given: "$.components.schemas[*].properties[*].format"
     then:
-      function: schema
+      function: pattern
       functionOptions:
-        schema:
-          not:
-            properties:
-              format:
-                enum: [float, double]
+        notMatch: "^(float|double)$"
 
   # ── doc 10 · Caching ────────────────────────────────────────────────────────
   rls-get-cache-control-header:

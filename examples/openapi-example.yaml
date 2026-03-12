@@ -20,6 +20,8 @@ security:
 tags:
   - name: orders
     description: Order resource operations
+  - name: health
+    description: Service health and readiness endpoints
 
 paths:
   /orders:
@@ -55,7 +57,7 @@ paths:
             type: string
             default: "-createdAt"
       security:
-        - bearerAuth: [orders:read]
+        - bearerAuth: []
       responses:
         "200":
           description: Paginated list of orders
@@ -83,7 +85,7 @@ paths:
       description: Creates a new order. Returns 201 with a Location header pointing to the created resource.
       tags: [orders]
       security:
-        - bearerAuth: [orders:write]
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -132,7 +134,7 @@ paths:
       description: Returns the full order resource for the given orderId.
       tags: [orders]
       security:
-        - bearerAuth: [orders:read]
+        - bearerAuth: []
       responses:
         "200":
           description: Order found
@@ -163,7 +165,7 @@ paths:
       description: Applies a JSON Patch (RFC 6902) to the order resource. Use to update individual fields such as status.
       tags: [orders]
       security:
-        - bearerAuth: [orders:write]
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -204,7 +206,7 @@ paths:
       description: Cancels a pending order. Returns 204 on success. Returns 409 if the order is in a state that cannot be cancelled.
       tags: [orders]
       security:
-        - bearerAuth: [orders:write]
+        - bearerAuth: []
       responses:
         "204":
           description: Order cancelled successfully
@@ -238,6 +240,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
         "503":
           description: Service is unavailable
           content:
