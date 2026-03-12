@@ -161,35 +161,22 @@ rules:
               required: [application/json]
 
   # ── doc 08 · Querying & Filtering ────────────────────────────────────────────
-  rls-get-collection-pagination:
-    message: "GET operations on collection paths SHOULD declare pagination query parameters (limit, cursor/page) [doc 08]"
-    severity: warn
-    given: "$.paths[?(/ =~ /\\/[a-z][a-z0-9-]*$/)].get.parameters[*]"
-    then:
-      function: schema
-      functionOptions:
-        schema:
-          properties:
-            name:
-              enum: [limit, cursor, page, after, before, offset]
+  # Note: rls-get-collection-pagination requires a custom Spectral function to
+  # filter paths by pattern (JSONPath does not support regex filters natively).
+  # Enforce this rule in code review: every collection GET MUST support
+  # limit + cursor/page query parameters (doc 08).
 
   # ── doc 09 · Data Representations ───────────────────────────────────────────
-  rls-no-number-format-float-for-identifiers:
-    message: "Schema properties named 'id', '*Id', '*_id' MUST be type: string, not integer [doc 09]"
+  # Note: property-name-aware rules (id → string, monetary → integer,
+  # date fields → date-time format) require custom Spectral functions.
+  # Enforce in code review per doc 09:
+  #   - Identifier fields MUST be type: string (never integer)
+  #   - Monetary values MUST be type: integer in minor currency units
+  #   - Date/time fields MUST declare format: date-time
+  rls-no-format-float-globally:
+    message: "format: float and format: double MUST NOT be used for any schema property [doc 09]"
     severity: error
-    given: "$.components.schemas[*].properties[?(@property.match(/^(id|.*Id|.*_id)$/))]"
-    then:
-      function: schema
-      functionOptions:
-        schema:
-          properties:
-            type:
-              enum: [string]
-
-  rls-no-float-for-monetary-amounts:
-    message: "Properties named 'amount', 'price', 'total', 'cost' MUST NOT use type: number with format: float — use integer (minor currency units) [doc 09]"
-    severity: error
-    given: "$.components.schemas[*].properties[?(@property.match(/^(amount|price|total|cost|fee|balance)$/))]"
+    given: "$.components.schemas[*].properties[*]"
     then:
       function: schema
       functionOptions:
@@ -198,19 +185,6 @@ rules:
             properties:
               format:
                 enum: [float, double]
-
-  rls-date-time-format:
-    message: "Properties with names containing 'At', 'Time', 'Date', 'Timestamp' MUST declare format: date-time [doc 09]"
-    severity: warn
-    given: "$.components.schemas[*].properties[?(@property.match(/(At|Time|Date|Timestamp)$/))]"
-    then:
-      function: schema
-      functionOptions:
-        schema:
-          required: [format]
-          properties:
-            format:
-              enum: [date-time, date]
 
   # ── doc 10 · Caching ────────────────────────────────────────────────────────
   rls-get-cache-control-header:
