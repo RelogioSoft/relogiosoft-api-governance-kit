@@ -1,0 +1,11 @@
+# CODEOWNERS — every PR must be approved by a member of the admins team
+# before it can be merged (requires "Require review from Code Owners"
+# enabled in branch protection rules for the main branch).
+
+# Default: all files require admin approval
+* @RelogioSoft/admins
+
+# Governance standards — additional explicit coverage
+docs/standards/ @RelogioSoft/admins
+.spectral.yml   @RelogioSoft/admins
+.github/        @RelogioSoft/admins
