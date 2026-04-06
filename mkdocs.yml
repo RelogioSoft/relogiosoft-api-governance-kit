@@ -1,0 +1,86 @@
+site_name: RelogioSoft API Governance Kit
+site_description: >-
+  Canonical API governance standards for designing, building, and validating
+  consistent, secure, and evolvable REST APIs.
+site_url: https://relogiosoft.github.io/relogiosoft-api-governance-kit
+repo_url: https://github.com/RelogioSoft/relogiosoft-api-governance-kit
+repo_name: RelogioSoft/relogiosoft-api-governance-kit
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    scheme: slate
+    primary: indigo
+    accent: blue
+  font:
+    text: Inter
+    code: JetBrains Mono
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.indexes
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - toc.follow
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search:
+      lang: en
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - tables
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+      toc_depth: 3
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/RelogioSoft
+
+nav:
+  - Home: index.md
+  - Standards:
+    - standards/index.md
+    - "01 · API First Principles": standards/01-api-first-principles.md
+    - "02 · API Lifecycle": standards/02-api-lifecycle.md
+    - "03 · API Versioning": standards/03-api-versioning.md
+    - "04 · URI Design": standards/04-uri-design.md
+    - "05 · HTTP Verbs": standards/05-http-verbs.md
+    - "06 · HTTP Status Codes": standards/06-http-status-codes.md
+    - "07 · Error Handling": standards/07-error-handling.md
+    - "08 · Querying & Filtering": standards/08-querying-and-filtering.md
+    - "09 · Data Representations": standards/09-data-representations.md
+    - "10 · Caching": standards/10-caching.md
+    - "11 · Observability & Logging": standards/11-observability-and-logging.md
+    - "12 · Documentation Standards": standards/12-documentation-standards.md
+    - "13 · Security": standards/13-security.md
+    - "14 · Request & Response Headers": standards/14-request-response-headers.md
+    - "15 · Idempotency": standards/15-idempotency.md
+    - "16 · Webhooks & Async Patterns": standards/16-webhooks-and-async-patterns.md
+    - "17 · Health Endpoints": standards/17-health-endpoints.md
+    - "18 · Batch Operations": standards/18-batch-operations.md
+  - Tooling:
+    - guides/spectral.md
+    - guides/contributing.md
